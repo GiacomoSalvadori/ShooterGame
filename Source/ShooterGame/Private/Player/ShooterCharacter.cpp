@@ -876,7 +876,6 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AShooterCharacter::OnStopJump);
 
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleportPressed);
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleportReleased);
 
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
@@ -1044,23 +1043,10 @@ void AShooterCharacter::OnStopRunning()
 void AShooterCharacter::OnTeleportPressed() {
 	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
 	if (MovementComponent) {
-		
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Pressed teleport");
 		MovementComponent->SetTeleport(true);
 	}
 }
 
-void AShooterCharacter::OnTeleportReleased() {
-	/*
-	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
-	if (MovementComponent) {
-		if (!HasAuthority())
-			MovementComponent->ServerTeleport(false);
-
-		MovementComponent->SetTeleport(false);
-	}
-	*/
-}
 
 bool AShooterCharacter::IsRunning() const
 {

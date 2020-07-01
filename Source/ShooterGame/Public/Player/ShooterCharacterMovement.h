@@ -5,6 +5,7 @@
  */
 
 #pragma once
+#include "Engine/EngineTypes.h"
 #include "ShooterCharacterMovement.generated.h"
 
 UENUM(BlueprintType)
@@ -23,6 +24,12 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 
 private:
 
+	/** Variable used fort the cool down */
+	bool bCanTeleport = true;
+
+	/** Time handler used for abilities*/
+	FTimerHandle AbilityTimerHandle;
+
 	virtual float GetMaxSpeed() const override;
 	
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
@@ -36,11 +43,19 @@ private:
 	*/
 	void ExecTeleport(bool useRequest);
 
-public:
-	bool bUseTeleport;
+	/** Function used for cooldown */
+	void EnableTeleport();
 
+public:
+	bool bUseTeleport = false;
+
+	/** Teleport distance */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
 	float TeleportDistance = 1000.0f;
+
+	/** Teleport cool down */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
+	float TeleportCoolDown = 1.0f;
 
 	void SetTeleport(bool useRequest);
 

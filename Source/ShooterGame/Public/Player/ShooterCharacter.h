@@ -197,9 +197,6 @@ class AShooterCharacter : public ACharacter
 	/** player pressed the teleport key */
 	void OnTeleportPressed();
 
-	/** player release teleport key*/
-	void OnTeleportReleased();
-
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
 

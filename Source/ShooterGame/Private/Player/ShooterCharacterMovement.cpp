@@ -58,20 +58,26 @@ void UShooterCharacterMovement::PhysTeleport(float deltaTime, int32 Iterations) 
 	bUseTeleport = false;
 	/** This is important or the character will continue to move forward */
 	SetMovementMode(EMovementMode::MOVE_Walking);
+	GetOwner()->GetWorldTimerManager().SetTimer(AbilityTimerHandle, this, &UShooterCharacterMovement::EnableTeleport, TeleportCoolDown, false);
 }
 
 void UShooterCharacterMovement::SetTeleport(bool useRequest) {
-	ExecTeleport(useRequest);
-
-	if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled()) {
-		ServerTeleport(useRequest);
+	
+	if (bCanTeleport) {
+		if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled()) {
+			ServerTeleport(useRequest);
+		} else {
+			ExecTeleport(useRequest);
+		}
 	}
+	
 }
 
 void UShooterCharacterMovement::ExecTeleport(bool useRequest) {
 	// Just set thit to true, the OnMovementUpdated() function will change the movement mode
 	// The teleport is iplemented in the PhysTeleport(), called by PhysCustom()
 	bUseTeleport = useRequest;
+	bCanTeleport = false;
 }
 
 bool UShooterCharacterMovement::ServerTeleport_Validate(bool useRequest) {
@@ -79,6 +85,11 @@ bool UShooterCharacterMovement::ServerTeleport_Validate(bool useRequest) {
 }
 
 void UShooterCharacterMovement::ServerTeleport_Implementation(bool useRequest) {
-	ExecTeleport(useRequest);
-	
+	if (bCanTeleport) {
+		ExecTeleport(useRequest);
+	}
+}
+
+void UShooterCharacterMovement::EnableTeleport() {
+	bCanTeleport = true;
 }
