@@ -539,6 +539,7 @@ void AShooterCharacter::OnRep_LastTakeHitInfo()
 	}
 	else
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Take info");
 		PlayHit(LastTakeHitInfo.ActualDamage, LastTakeHitInfo.GetDamageEvent(), LastTakeHitInfo.PawnInstigator.Get(), LastTakeHitInfo.DamageCauser.Get());
 	}
 }
@@ -819,6 +820,7 @@ float AShooterCharacter::PlayAnimMontage(class UAnimMontage* AnimMontage, float 
 	USkeletalMeshComponent* UseMesh = GetPawnMesh();
 	if (AnimMontage && UseMesh && UseMesh->AnimScriptInstance)
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, "PLay?");
 		return UseMesh->AnimScriptInstance->Montage_Play(AnimMontage, InPlayRate);
 	}
 
@@ -872,6 +874,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::OnStartJump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &AShooterCharacter::OnStopJump);
+
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleportPressed);
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleportReleased);
 
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
@@ -1036,6 +1041,27 @@ void AShooterCharacter::OnStopRunning()
 	SetRunning(false, false);
 }
 
+void AShooterCharacter::OnTeleportPressed() {
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent) {
+		
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Pressed teleport");
+		MovementComponent->SetTeleport(true);
+	}
+}
+
+void AShooterCharacter::OnTeleportReleased() {
+	/*
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent) {
+		if (!HasAuthority())
+			MovementComponent->ServerTeleport(false);
+
+		MovementComponent->SetTeleport(false);
+	}
+	*/
+}
+
 bool AShooterCharacter::IsRunning() const
 {
 	if (!GetCharacterMovement())
@@ -1171,6 +1197,48 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
+	DOREPLIFETIME(AShooterCharacter, TestVar);
+}
+
+void AShooterCharacter::OnRep_TestVar() {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "OnRep_TestVar");
+	PlayAnimation();
+}
+
+void AShooterCharacter::PlayAnimation() {
+	if (IsFirstPerson()) {
+		float AnimDuration = PlayAnimMontage(AnotherAnim);
+	}
+	else {
+		float DeathAnimDuration = PlayAnimMontage(DeathAnim);
+	}
+}
+
+void AShooterCharacter::OnModifyTest() {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "OnModifyTest");
+	
+	TestVar = TestVar + 1;
+
+	// Modify position
+	FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1500.0f;
+	// Here I am sure to be on the server
+	TeleportTo(TargetLocation, GetActorRotation());
+}
+
+void AShooterCharacter::DoSomething() {
+	if (GetLocalRole() == ROLE_Authority) {
+		OnModifyTest();
+	} else {
+		ServerDoSomething();
+	}
+}
+
+bool AShooterCharacter::ServerDoSomething_Validate() {
+	return true;
+}
+
+void AShooterCharacter::ServerDoSomething_Implementation() {
+	DoSomething();
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)

@@ -194,6 +194,12 @@ class AShooterCharacter : public ACharacter
 	/** player released run action */
 	void OnStopRunning();
 
+	/** player pressed the teleport key */
+	void OnTeleportPressed();
+
+	/** player release teleport key*/
+	void OnTeleportReleased();
+
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
 
@@ -334,6 +340,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
 	UAnimMontage* DeathAnim;
 
+	UPROPERTY(EditDefaultsOnly, Category = Animation)
+	UAnimMontage* AnotherAnim;
+
 	/** sound played on death, local player only */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
 	USoundCue* DeathSound;
@@ -392,10 +401,15 @@ private:
 
 public:
 
+	void DoSomething();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerDoSomething();
+
 	/** Identifies if pawn is in its dying state */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health)
 	uint32 bIsDying : 1;
-
+	
 	// Current health of the Pawn
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = Health)
 	float Health;
@@ -428,6 +442,10 @@ public:
 	/** Called on the actor right before replication occurs */
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
 protected:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_TestVar)
+	int TestVar = 0;
+
 	/** notification when killed, for both the server and client. */
 	virtual void OnDeath(float KillingDamage, struct FDamageEvent const& DamageEvent, class APawn* InstigatingPawn, class AActor* DamageCauser);
 
@@ -439,6 +457,14 @@ protected:
 
 	/** sets up the replication for taking a hit */
 	void ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, class APawn* InstigatingPawn, class AActor* DamageCauser, bool bKilled);
+
+	UFUNCTION()
+	void OnRep_TestVar();
+
+	//UFUNCTION(reliable, NetMulticast, WithValidation)
+	void OnModifyTest();
+
+	void PlayAnimation();
 
 	/** play hit or death on client */
 	UFUNCTION()
