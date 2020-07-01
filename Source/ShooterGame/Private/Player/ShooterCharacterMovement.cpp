@@ -52,18 +52,18 @@ void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 void UShooterCharacterMovement::PhysTeleport(float deltaTime, int32 Iterations) {
 
 	FVector TargetLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * TeleportDistance;
-	/** Use this because this function controls if the destination point is inside a volume*/
+	/** Use this because controls if the destination point is inside a volume*/
 	GetOwner()->TeleportTo(TargetLocation, GetOwner()->GetActorRotation());
 	
 	bUseTeleport = false;
-	/** This is important or the character will continue to move forward */
+	/** This is important, without the character will continue to move forward */
 	SetMovementMode(EMovementMode::MOVE_Walking);
-	GetOwner()->GetWorldTimerManager().SetTimer(AbilityTimerHandle, this, &UShooterCharacterMovement::EnableTeleport, TeleportCoolDown, false);
+	GetOwner()->GetWorldTimerManager().SetTimer(AbilityTimerHandle, this, &UShooterCharacterMovement::EnableAbility, TeleportCoolDown, false);
 }
 
 void UShooterCharacterMovement::SetTeleport(bool useRequest) {
 	
-	if (bCanTeleport) {
+	if (bCanUseAbility) {
 		if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled()) {
 			ServerTeleport(useRequest);
 		} else {
@@ -77,7 +77,7 @@ void UShooterCharacterMovement::ExecTeleport(bool useRequest) {
 	// Just set thit to true, the OnMovementUpdated() function will change the movement mode
 	// The teleport is iplemented in the PhysTeleport(), called by PhysCustom()
 	bUseTeleport = useRequest;
-	bCanTeleport = false;
+	bCanUseAbility = false;
 }
 
 bool UShooterCharacterMovement::ServerTeleport_Validate(bool useRequest) {
@@ -85,11 +85,11 @@ bool UShooterCharacterMovement::ServerTeleport_Validate(bool useRequest) {
 }
 
 void UShooterCharacterMovement::ServerTeleport_Implementation(bool useRequest) {
-	if (bCanTeleport) {
+	if (bCanUseAbility) {
 		ExecTeleport(useRequest);
 	}
 }
 
-void UShooterCharacterMovement::EnableTeleport() {
-	bCanTeleport = true;
+void UShooterCharacterMovement::EnableAbility() {
+	bCanUseAbility = true;
 }

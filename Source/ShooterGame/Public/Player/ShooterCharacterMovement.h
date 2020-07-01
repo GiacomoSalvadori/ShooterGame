@@ -24,8 +24,8 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 
 private:
 
-	/** Variable used fort the cool down */
-	bool bCanTeleport = true;
+	/** Variable used for ability cool down. Player could use one ability per time */
+	bool bCanUseAbility = true;
 
 	/** Time handler used for abilities*/
 	FTimerHandle AbilityTimerHandle;
@@ -43,8 +43,8 @@ private:
 	*/
 	void ExecTeleport(bool useRequest);
 
-	/** Function used for cooldown */
-	void EnableTeleport();
+	/** Function used for enabling the use of ability */
+	void EnableAbility();
 
 public:
 	bool bUseTeleport = false;
