@@ -64,9 +64,7 @@ void UShooterCharacterMovement::SetTeleport(bool useRequest) {
 	ExecTeleport(useRequest);
 
 	if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled()) {
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "server branch");
 		ServerTeleport(useRequest);
-		UE_LOG(LogTemp, Log, TEXT("server branch"));
 	}
 }
 

@@ -1197,48 +1197,6 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
-	DOREPLIFETIME(AShooterCharacter, TestVar);
-}
-
-void AShooterCharacter::OnRep_TestVar() {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "OnRep_TestVar");
-	PlayAnimation();
-}
-
-void AShooterCharacter::PlayAnimation() {
-	if (IsFirstPerson()) {
-		float AnimDuration = PlayAnimMontage(AnotherAnim);
-	}
-	else {
-		float DeathAnimDuration = PlayAnimMontage(DeathAnim);
-	}
-}
-
-void AShooterCharacter::OnModifyTest() {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "OnModifyTest");
-	
-	TestVar = TestVar + 1;
-
-	// Modify position
-	FVector TargetLocation = GetActorLocation() + GetActorForwardVector() * 1500.0f;
-	// Here I am sure to be on the server
-	TeleportTo(TargetLocation, GetActorRotation());
-}
-
-void AShooterCharacter::DoSomething() {
-	if (GetLocalRole() == ROLE_Authority) {
-		OnModifyTest();
-	} else {
-		ServerDoSomething();
-	}
-}
-
-bool AShooterCharacter::ServerDoSomething_Validate() {
-	return true;
-}
-
-void AShooterCharacter::ServerDoSomething_Implementation() {
-	DoSomething();
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
