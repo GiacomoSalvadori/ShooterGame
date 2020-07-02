@@ -877,6 +877,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleportPressed);
 
+	PlayerInputComponent->BindAction("Jetpack", IE_Pressed, this, &AShooterCharacter::OnJetpackStart);
+	PlayerInputComponent->BindAction("Jetpack", IE_Released, this, &AShooterCharacter::OnJetpackEnd);
+
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
@@ -1042,11 +1045,24 @@ void AShooterCharacter::OnStopRunning()
 
 void AShooterCharacter::OnTeleportPressed() {
 	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
-	if (MovementComponent) {
+	if (MovementComponent && MovementComponent->CanUseAbility()) {
 		MovementComponent->SetTeleport(true);
 	}
 }
 
+void AShooterCharacter::OnJetpackStart() {
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent && MovementComponent->CanUseAbility()) {
+		MovementComponent->SetJetpack(true);
+	}
+}
+
+void AShooterCharacter::OnJetpackEnd() {
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent) {
+		MovementComponent->SetJetpack(false);
+	}
+}
 
 bool AShooterCharacter::IsRunning() const
 {
@@ -1147,6 +1163,8 @@ void AShooterCharacter::OnStartJump()
 	if (MyPC && MyPC->IsGameInputAllowed())
 	{
 		bPressedJump = true;
+
+
 	}
 }
 

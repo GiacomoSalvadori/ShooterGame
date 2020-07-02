@@ -197,6 +197,12 @@ class AShooterCharacter : public ACharacter
 	/** player pressed the teleport key */
 	void OnTeleportPressed();
 
+	/** player pressed the jetpack key */
+	void OnJetpackStart();
+	
+	/** player released the jetpack key */
+	void OnJetpackEnd();
+
 	//////////////////////////////////////////////////////////////////////////
 	// Reading data
 
