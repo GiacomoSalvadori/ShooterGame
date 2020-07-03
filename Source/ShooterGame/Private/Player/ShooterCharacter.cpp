@@ -820,7 +820,6 @@ float AShooterCharacter::PlayAnimMontage(class UAnimMontage* AnimMontage, float 
 	USkeletalMeshComponent* UseMesh = GetPawnMesh();
 	if (AnimMontage && UseMesh && UseMesh->AnimScriptInstance)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, "PLay?");
 		return UseMesh->AnimScriptInstance->Montage_Play(AnimMontage, InPlayRate);
 	}
 

@@ -31,6 +31,9 @@ private:
 	bool bUseTeleport = false;
 	bool bUseJetpack = false;
 
+	/** Used to control the jetpack curve */
+	float JetpackElapsedTime;
+
 	/** Time handler used for abilities */
 	FTimerHandle AbilityTimerHandle;
 
@@ -58,23 +61,26 @@ private:
 	/** Function used for enabling the use of ability */
 	void EnableAbility();
 
+protected:
+	virtual void BeginPlay() override;
+
 public:
 	
 	/** Teleport distance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities|Teleport)
 	float TeleportDistance = 1000.0f;
 
 	/** Teleport cool down */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Teleport)
 	float TeleportCoolDown = 1.0f;
 
-	/** Jetpack speed */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
-	float JetpackSpeed = 1.0f;
-
-	/** Jetpack speed */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Teleport)
+	/** Jetpack max speed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Jetpack)
 	float MaxJetpackSpeed = 2000.0f;
+
+	/** Personalized curve for jetpack movement */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Jetpack)
+	UCurveFloat* JetpackCurve;
 
 	void SetTeleport(bool useRequest);
 

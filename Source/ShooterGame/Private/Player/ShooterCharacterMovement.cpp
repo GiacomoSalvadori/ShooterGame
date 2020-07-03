@@ -11,6 +11,10 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 {
 }
 
+void UShooterCharacterMovement::BeginPlay() {
+	JetpackElapsedTime = 0.0f;
+}
+
 // GETTER
 
 bool UShooterCharacterMovement::CanUseAbility() {
@@ -69,10 +73,7 @@ bool UShooterCharacterMovement::IsTouchingGround(float CheckDistance) {
 	AShooterCharacter* CharacterOwner = Cast<AShooterCharacter>(GetOwner());
 	FVector Start = CharacterOwner->GetMesh()->GetComponentLocation();
 	FVector End = Start + (FVector::DownVector * FMath::Abs(CheckDistance));
-	//FVector Start = GetOwner()->GetActorLocation();
-	//FVector End = Start + GetOwner()->GetActorForwardVector() * 1000.0f;
-	DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 3.0f);
-
+	
 	FCollisionQueryParams Params;
 	// Ignore the character's pawn
 	Params.AddIgnoredActor(GetOwner());
@@ -82,8 +83,7 @@ bool UShooterCharacterMovement::IsTouchingGround(float CheckDistance) {
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Pawn, Params);
 
 	if (bHit) {
-		GEngine->AddOnScreenDebugMessage(-1, 1.5f, FColor::Yellow, "Actor "+ (Hit.Actor.Get()->GetName()));
-		if (Hit.bBlockingHit) {
+		if (Hit.bBlockingHit) { // the character touch something on the ground
 			return true;
 		}
 	}
@@ -121,8 +121,8 @@ void UShooterCharacterMovement::SetTeleport(bool useRequest) {
 }
 
 void UShooterCharacterMovement::ExecTeleport(bool useRequest) {
-	// Just set thit to true, the OnMovementUpdated() function will change the movement mode
-	// The teleport is iplemented in the PhysTeleport(), called by PhysCustom()
+	/** Just set the use variable to true, the OnMovementUpdated() function will change 
+	the movement mode. The teleport is iplemented in the PhysTeleport(), called by PhysCustom() */
 	bUseTeleport = useRequest;
 	bCanUseAbility = !useRequest;
 }
@@ -137,25 +137,31 @@ void UShooterCharacterMovement::ServerTeleport_Implementation(bool useRequest) {
 	}
 }
 
+
 //////////////////////////////////////////////////////////////////////////
 ///// JETPACK
 
 void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
-	float JetDir = FMath::Sign(GetGravityZ()) * -1; // Get gravity direction * -1
-	bool isInAir = true;
-	if (!bUseJetpack) {
-		EnableAbility();
-		JetDir *= -1.0f;
-		isInAir = IsTouchingGround(1.0f);
-	}
-	
-	if (!isInAir) {
-		Velocity.Z = 0.0f;
-		SetMovementMode(EMovementMode::MOVE_Walking);
-	} else {
-		float NewVelocityZ = Velocity.Z + (JetDir * JetpackSpeed * deltaTime);
-		Velocity.Z = FMath::Clamp(NewVelocityZ, -MaxJetpackSpeed, MaxJetpackSpeed);
-		PhysFalling(deltaTime, Iterations);
+	if (GetOwner()->HasAuthority()) {
+		float JetDir = FMath::Sign(GetGravityZ()) * -1; // Get gravity direction * -1
+		bool isInAir = true;
+		if (!bUseJetpack) {
+			EnableAbility();
+			JetDir *= -1.0f;
+			isInAir = IsTouchingGround(1.0f);
+		}
+
+		if (!isInAir) {
+			Velocity.Z = 0.0f;
+			JetpackElapsedTime = 0.0f;
+			SetMovementMode(EMovementMode::MOVE_Walking);
+		} else {
+			JetpackElapsedTime += deltaTime * JetDir;
+			float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
+			Velocity.Z = CurveValue * MaxJetpackSpeed;
+
+			PhysFalling(deltaTime, Iterations); // Use the falling physics			
+		}
 	}
 }
 
@@ -168,8 +174,9 @@ void UShooterCharacterMovement::SetJetpack(bool useRequest) {
 }
 
 void UShooterCharacterMovement::ExecJetpack(bool useRequest) {
-	// Just set this to true, the OnMovementUpdated() function will change the movement mode
-	// The jetpack is iplemented in the JetpackTeleport(), called by PhysCustom()
+	/** Just set the use variable to true, the OnMovementUpdated() function will change 
+	    the movement mode. The jetpack is iplemented in the JetpackTeleport(), called 
+		by PhysCustom() */
 	bUseJetpack = useRequest;
 	if (useRequest) {
 		bCanUseAbility = useRequest;
