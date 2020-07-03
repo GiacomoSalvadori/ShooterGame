@@ -20,19 +20,35 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 {
 	GENERATED_UCLASS_BODY()
 
-	// For now is useless
-	//virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+
+	/** This function set the variables for calling the teleport */
+	void ExecTeleport(bool useRequest);
+
+	/** This function set the variables for calling the jetpack */
+	void ExecJetpack(bool useRequest);
 
 private:
 
 	/** Variable used for ability cool down. Player could use one ability per time */
 	bool bCanUseAbility = true;
 
-	bool bUseTeleport = false;
-	bool bUseJetpack = false;
+	// Jetpack variables	
+
+	/** Indicate if fuel is over or not */
+	bool bFuelOver = false;
 
 	/** Used to control the jetpack curve */
 	float JetpackElapsedTime;
+
+	/** Used to handle the time of fuel consuming */
+	float JetpackElapsedTimeFuelConsume;
+	
+	/** Actual fuel */
+	float ActualFuel;
+
+	/** Time handler used for fuel recover */
+	FTimerHandle FuelRecoverTimerHandle;
 
 	/** Time handler used for abilities */
 	FTimerHandle AbilityTimerHandle;
@@ -49,11 +65,8 @@ private:
 	/** Manage the jetpack mechanic's physics */
 	void PhysJetpack(float deltaTime, int32 Iterations);
 	
-	/** This function set the variables for calling the teleport */
-	void ExecTeleport(bool useRequest);
-
-	/** This function set the variables for calling the jetpack */
-	void ExecJetpack(bool useRequest);
+	/** Recharge the jetpack fuel */
+	void RecoverJetpackFuel();
 
 	/** Check if character is touching ground */
 	bool IsTouchingGround(float CheckDistance);
@@ -63,23 +76,50 @@ private:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 public:
 	
+	/** Want to use teleport mechanic? */
+	bool bUseTeleport = false;
+	
 	/** Teleport distance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities|Teleport)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Teleport")
 	float TeleportDistance = 1000.0f;
 
 	/** Teleport cool down */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Teleport)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Teleport")
 	float TeleportCoolDown = 1.0f;
 
+	/** Want to use jetpack mechanic? */
+	bool bUseJetpack = false;
+
 	/** Jetpack max speed */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Jetpack)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
 	float MaxJetpackSpeed = 2000.0f;
 
+	/** Jetpack fuel amount */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
+	float JetpackFuel = 100.0f;
+
+	/** Jetpack fuel consume per time (specified in JetpackTimeConsume) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
+	float JetpackFuelConsume = 20.0f;
+
+	/** Time to wait for consuming the JetpackFuelConsume amount*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
+	float JetpackTimeConsume = 0.5f;
+
+	/** Jetpack fuel recover per time (specified in JetpackTimeRecover) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
+	float JetpackFuelRecover = 20.0f;
+
+	/** Time to wait for consuming the JetpackFuelRecover amount*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
+	float JetpackTimeRecover = 0.5f;
+	
 	/** Personalized curve for jetpack movement */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Ability | Jetpack)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
 	UCurveFloat* JetpackCurve;
 
 	void SetTeleport(bool useRequest);
@@ -94,10 +134,43 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
 	void ServerJetpack(bool useRequest);
 
+	UFUNCTION(BlueprintCallable, Category = "Jetpack")
+	float RetrieveActualFuel();
+
 	// GETTER
 
 	/** Is it possible to use an ability? */
 	UFUNCTION(BlueprintCallable)
 	bool CanUseAbility();
+
 };
 
+/** represents a saved move on the client that has been sent to the server and might need 
+	to be played back. */
+class FSavedMove_ShooterCharacter : public FSavedMove_Character
+{
+
+	friend class UShooterCharacterMovement;
+
+public:
+	typedef FSavedMove_Character Super;
+	/** Clear saved move properties, so it can be re-used. */
+	virtual void Clear() override;
+	/** Called to set up this saved move (when initially created) to make a predictive correction. */
+	virtual void SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character & ClientData) override;
+	
+	/** Called before ClientUpdatePosition uses this SavedMove to make a predictive correction */
+	virtual void PrepMoveFor(ACharacter* Character) override;
+
+	bool savedUseTeleport = false;
+	bool savedUseJetpack = false;
+};
+
+/** Network data representation on the client. */
+class FNetworkPredictionData_Client_Shooter : public FNetworkPredictionData_Client_Character
+{
+public:
+	FNetworkPredictionData_Client_Shooter(const UCharacterMovementComponent& ClientMovement);
+	typedef FNetworkPredictionData_Client_Character Super;
+	virtual FSavedMovePtr AllocateNewMove() override;
+};

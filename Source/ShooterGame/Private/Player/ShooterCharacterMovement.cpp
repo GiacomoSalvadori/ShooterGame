@@ -12,7 +12,15 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 }
 
 void UShooterCharacterMovement::BeginPlay() {
+	Super::BeginPlay();
+
 	JetpackElapsedTime = 0.0f;
+	JetpackElapsedTimeFuelConsume = 0.0f;
+	ActualFuel = JetpackFuel;
+}
+
+void UShooterCharacterMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) {
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 // GETTER
@@ -51,6 +59,8 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 	if (bUseJetpack) {
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CUSTOM_Jetpack);
 	}
+
+	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
 void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
@@ -70,8 +80,8 @@ void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 
 bool UShooterCharacterMovement::IsTouchingGround(float CheckDistance) {
 	
-	AShooterCharacter* CharacterOwner = Cast<AShooterCharacter>(GetOwner());
-	FVector Start = CharacterOwner->GetMesh()->GetComponentLocation();
+	AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
+	FVector Start = ShooterCharacterOwner->GetMesh()->GetComponentLocation();
 	FVector End = Start + (FVector::DownVector * FMath::Abs(CheckDistance));
 	
 	FCollisionQueryParams Params;
@@ -142,27 +152,27 @@ void UShooterCharacterMovement::ServerTeleport_Implementation(bool useRequest) {
 ///// JETPACK
 
 void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
-	if (GetOwner()->HasAuthority()) {
-		float JetDir = FMath::Sign(GetGravityZ()) * -1; // Get gravity direction * -1
-		bool isInAir = true;
-		if (!bUseJetpack) {
-			EnableAbility();
-			JetDir *= -1.0f;
-			isInAir = IsTouchingGround(1.0f);
-		}
-
-		if (!isInAir) {
-			Velocity.Z = 0.0f;
-			JetpackElapsedTime = 0.0f;
-			SetMovementMode(EMovementMode::MOVE_Walking);
-		} else {
-			JetpackElapsedTime += deltaTime * JetDir;
-			float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
-			Velocity.Z = CurveValue * MaxJetpackSpeed;
-
-			PhysFalling(deltaTime, Iterations); // Use the falling physics			
+	
+	float JetDir = GetGravityZ() * -1; // Get gravity direction * -1  FMath::Sign(GetGravityZ())
+		
+	JetpackElapsedTimeFuelConsume += deltaTime;
+	if (JetpackElapsedTimeFuelConsume >= JetpackTimeConsume) {
+		JetpackElapsedTimeFuelConsume = 0.0f;
+		ActualFuel -= JetpackFuelConsume;
+		if (ActualFuel <= 0.0f) {
+			bFuelOver = true;
+			bUseJetpack = false;
+			SetMovementMode(EMovementMode::MOVE_Falling);
 		}
 	}
+
+	JetpackElapsedTime += deltaTime * JetDir;
+	float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
+
+	Velocity.Z = CurveValue * MaxJetpackSpeed * deltaTime;
+	AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
+
+	PhysFalling(deltaTime, Iterations); // Use the falling physics	
 }
 
 void UShooterCharacterMovement::SetJetpack(bool useRequest) {
@@ -175,11 +185,21 @@ void UShooterCharacterMovement::SetJetpack(bool useRequest) {
 
 void UShooterCharacterMovement::ExecJetpack(bool useRequest) {
 	/** Just set the use variable to true, the OnMovementUpdated() function will change 
-	    the movement mode. The jetpack is iplemented in the JetpackTeleport(), called 
+	    the movement mode. The jetpack is implemented in the JetpackTeleport(), called 
 		by PhysCustom() */
-	bUseJetpack = useRequest;
-	if (useRequest) {
-		bCanUseAbility = useRequest;
+	if (!bFuelOver) {  // Execute if there is fuel
+		bUseJetpack = useRequest;
+		if (useRequest) {
+			bCanUseAbility = useRequest;
+			// Clear the timer for fuel recovery
+			GetOwner()->GetWorldTimerManager().ClearTimer(FuelRecoverTimerHandle);
+		}
+	}
+
+	if (!useRequest) {
+		bUseJetpack = useRequest;
+		GetOwner()->GetWorldTimerManager().SetTimer(FuelRecoverTimerHandle, this, &UShooterCharacterMovement::RecoverJetpackFuel, JetpackTimeRecover, true);
+		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 }
 
@@ -192,5 +212,75 @@ void UShooterCharacterMovement::ServerJetpack_Implementation(bool useRequest) {
 		ExecJetpack(useRequest);
 	} else if(!useRequest) { // stop the jetpack emission
 		ExecJetpack(useRequest);
+	}
+}
+
+void UShooterCharacterMovement::RecoverJetpackFuel() {
+	float NewFuelAmount = ActualFuel + JetpackFuelRecover;
+	ActualFuel = FMath::Clamp(NewFuelAmount, 0.0f, JetpackFuel);
+	if(GetOwner()->HasAuthority())
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Black, TEXT("Recover fuel server"));
+	else
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Black, TEXT("Recover fuel client"));
+
+	if (ActualFuel == JetpackFuel) {
+		GetOwner()->GetWorldTimerManager().ClearTimer(FuelRecoverTimerHandle);
+		if (bFuelOver) {
+			bFuelOver = false;
+		}
+	}
+}
+
+float UShooterCharacterMovement::RetrieveActualFuel() {
+
+	return ActualFuel;
+}
+
+// Network area
+FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionData_Client() const {
+	check(PawnOwner != NULL);
+
+	if (!ClientPredictionData) {
+		UShooterCharacterMovement* CharacterMovement = const_cast<UShooterCharacterMovement*>(this);
+
+		CharacterMovement->ClientPredictionData = new FNetworkPredictionData_Client_Shooter(*this);
+	}
+
+	return ClientPredictionData;
+}
+
+FNetworkPredictionData_Client_Shooter::FNetworkPredictionData_Client_Shooter(const UCharacterMovementComponent& ClientMovement)
+	: Super(ClientMovement)
+{
+
+}
+
+FSavedMovePtr FNetworkPredictionData_Client_Shooter::AllocateNewMove() {
+	return FSavedMovePtr(new FSavedMove_ShooterCharacter());
+}
+
+void FSavedMove_ShooterCharacter::Clear() {
+	Super::Clear();
+	savedUseTeleport = false;
+	savedUseJetpack = false;
+}
+
+void FSavedMove_ShooterCharacter::SetMoveFor(ACharacter * Character, float InDeltaTime, FVector const & NewAccel, FNetworkPredictionData_Client_Character & ClientData) {
+	Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
+	UShooterCharacterMovement* CharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
+	if (CharacterMovement) {
+		savedUseTeleport = CharacterMovement->bUseTeleport;
+		savedUseJetpack = CharacterMovement->bUseJetpack;
+	}
+}
+
+void FSavedMove_ShooterCharacter::PrepMoveFor(ACharacter * Character) {
+	Super::PrepMoveFor(Character);
+
+	UShooterCharacterMovement* CharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
+	if (CharacterMovement) {
+		GEngine->AddOnScreenDebugMessage(-1, 0.2f, FColor::Yellow, TEXT("Preparation!!!!"));
+		CharacterMovement->ExecTeleport(savedUseTeleport);
+		CharacterMovement->ExecJetpack(savedUseJetpack);
 	}
 }
