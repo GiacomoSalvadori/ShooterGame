@@ -54,6 +54,9 @@ private:
 	/** Time handler used for fuel recover */
 	FTimerHandle FuelRecoverTimerHandle;
 
+	/** Is the character running on a wall? */
+	bool bRunningOnWall = false;
+
 	/** Elapsed time for wall run */
 	float WallRunElapsedTime;
 
@@ -153,6 +156,10 @@ public:
 	/** Set time length for holding button and then start the wall run */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
 	float DistanceFromWall = 5.0f;
+
+	/** Set the upper force after a wall run */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
+	float LaunchUpperVelocity = 1000.0f;
 
 	// FUNCTIONS
 	void SetTeleport(bool useRequest);

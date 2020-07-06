@@ -94,8 +94,6 @@ void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 
 FHitResult UShooterCharacterMovement::IsTouchingAround() {
 	
-	AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
-	//FVector Center = ShooterCharacterOwner->GetMesh()->GetComponentLocation();
 	FVector Center = GetOwner()->GetActorLocation();
 	
 	FCollisionQueryParams Params;
@@ -105,7 +103,7 @@ FHitResult UShooterCharacterMovement::IsTouchingAround() {
 	FCollisionShape CollShape = FCollisionShape::MakeSphere(DistanceFromWall);
 
 	FHitResult Hit;
-	DrawDebugSphere(GetWorld(), Center, DistanceFromWall, 12, FColor::Orange, true);
+	DrawDebugSphere(GetWorld(), Center, DistanceFromWall, 12, FColor::Orange, false, 4.0f);
 	bool bHit = GetWorld()->SweepSingleByChannel(Hit, Center, Center, FQuat::Identity, ECC_Pawn, CollShape, Params);
 	
 	return Hit;
@@ -180,7 +178,6 @@ void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
 	float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
 
 	Velocity.Z = CurveValue * MaxJetpackSpeed * deltaTime;
-	AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
 
 	PhysFalling(deltaTime, Iterations); // Use the falling physics	
 }
@@ -246,26 +243,37 @@ float UShooterCharacterMovement::RetrieveActualFuel() {
 ///// WALL RUNS
 void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 	
-	WallRunElapsedTime += deltaTime;
+	FHitResult Hit = IsTouchingAround();
 
-	if (WallRunElapsedTime < WallRunTimeLength) {
-		FHitResult Hit = IsTouchingAround();
+	if (Hit.bBlockingHit) {
+		WallRunElapsedTime += deltaTime;
 
-		if (Hit.bBlockingHit) {
+		if (WallRunElapsedTime < WallRunTimeLength) {
+			bRunningOnWall = true;
 			FVector Adjusted = Velocity.GetSafeNormal() * deltaTime * WallRunSpeed;
 			Adjusted.Z = 0.0f; // Set Z = 0 so the player will run only left or right on the wall
-			
+
 			SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
 			return;
 		}
 	}
-
+	
 	// Here interrupt the wall run
 	bUseWallRun = false;
 	WallRunElapsedTime = 0.0f;
 	HoldJumpButtonElapsedTime = 0.0f;
 	EnableAbility();
-	SetMovementMode(EMovementMode::MOVE_Falling);
+
+	if (bRunningOnWall) { // was touching a wall?
+		bRunningOnWall = false;
+		AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
+		FVector Launch = Velocity;
+		Launch.Z = LaunchUpperVelocity; // Set the upper velocity
+		ShooterCharacterOwner->LaunchCharacter(Launch, true, true);
+		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Apply launch"));
+	} else {
+		SetMovementMode(EMovementMode::MOVE_Falling);
+	}
 }
 
 void UShooterCharacterMovement::SetWallRun(bool useRequest) {
@@ -281,9 +289,9 @@ void UShooterCharacterMovement::ExecWallRun(bool useRequest) {
 	bCanUseAbility = !useRequest;
 
 	if (!useRequest) {
+		WallRunElapsedTime = WallRunTimeLength; // Force the exit from wall run
+	} else {
 		WallRunElapsedTime = 0.0f;
-		HoldJumpButtonElapsedTime = 0.0f;
-		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 }
 
