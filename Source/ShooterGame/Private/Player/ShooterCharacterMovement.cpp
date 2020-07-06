@@ -17,10 +17,16 @@ void UShooterCharacterMovement::BeginPlay() {
 	JetpackElapsedTime = 0.0f;
 	JetpackElapsedTimeFuelConsume = 0.0f;
 	ActualFuel = JetpackFuel;
+	WallRunElapsedTime = 0.0f;
+	HoldJumpButtonElapsedTime = 0.0f;
 }
 
 void UShooterCharacterMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bUseWallRun) {
+		HoldJumpButtonElapsedTime += DeltaTime;
+	}
 }
 
 // GETTER
@@ -60,6 +66,10 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CUSTOM_Jetpack);
 	}
 
+	if (HoldJumpButtonElapsedTime >= HoldJumpButtonTime) {
+		SetMovementMode(EMovementMode::MOVE_Custom, ECustomMovementMode::CUSTOM_WallRun);
+	}
+
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
@@ -73,32 +83,32 @@ void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 			PhysJetpack(deltaTime, Iterations);
 			break;
 
+		case CUSTOM_WallRun:
+			PhysWallRun(deltaTime, Iterations);
+			break;
+
 		default:
 			break;
 	}
 }
 
-bool UShooterCharacterMovement::IsTouchingGround(float CheckDistance) {
+FHitResult UShooterCharacterMovement::IsTouchingAround() {
 	
 	AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
-	FVector Start = ShooterCharacterOwner->GetMesh()->GetComponentLocation();
-	FVector End = Start + (FVector::DownVector * FMath::Abs(CheckDistance));
+	//FVector Center = ShooterCharacterOwner->GetMesh()->GetComponentLocation();
+	FVector Center = GetOwner()->GetActorLocation();
 	
 	FCollisionQueryParams Params;
 	// Ignore the character's pawn
 	Params.AddIgnoredActor(GetOwner());
 
+	FCollisionShape CollShape = FCollisionShape::MakeSphere(DistanceFromWall);
+
 	FHitResult Hit;
-
-	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Pawn, Params);
-
-	if (bHit) {
-		if (Hit.bBlockingHit) { // the character touch something on the ground
-			return true;
-		}
-	}
-
-	return false;
+	DrawDebugSphere(GetWorld(), Center, DistanceFromWall, 12, FColor::Orange, true);
+	bool bHit = GetWorld()->SweepSingleByChannel(Hit, Center, Center, FQuat::Identity, ECC_Pawn, CollShape, Params);
+	
+	return Hit;
 }
 
 void UShooterCharacterMovement::EnableAbility() {
@@ -218,10 +228,6 @@ void UShooterCharacterMovement::ServerJetpack_Implementation(bool useRequest) {
 void UShooterCharacterMovement::RecoverJetpackFuel() {
 	float NewFuelAmount = ActualFuel + JetpackFuelRecover;
 	ActualFuel = FMath::Clamp(NewFuelAmount, 0.0f, JetpackFuel);
-	if(GetOwner()->HasAuthority())
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Black, TEXT("Recover fuel server"));
-	else
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Black, TEXT("Recover fuel client"));
 
 	if (ActualFuel == JetpackFuel) {
 		GetOwner()->GetWorldTimerManager().ClearTimer(FuelRecoverTimerHandle);
@@ -236,6 +242,60 @@ float UShooterCharacterMovement::RetrieveActualFuel() {
 	return ActualFuel;
 }
 
+//////////////////////////////////////////////////////////////////////////
+///// WALL RUNS
+void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
+	
+	WallRunElapsedTime += deltaTime;
+
+	if (WallRunElapsedTime < WallRunTimeLength) {
+		FHitResult Hit = IsTouchingAround();
+
+		if (Hit.bBlockingHit) {
+			FVector Adjusted = Velocity.GetSafeNormal() * deltaTime * WallRunSpeed;
+			Adjusted.Z = 0.0f; // Set Z = 0 so the player will run only left or right on the wall
+			
+			SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
+			return;
+		}
+	}
+
+	// Here interrupt the wall run
+	bUseWallRun = false;
+	WallRunElapsedTime = 0.0f;
+	HoldJumpButtonElapsedTime = 0.0f;
+	EnableAbility();
+	SetMovementMode(EMovementMode::MOVE_Falling);
+}
+
+void UShooterCharacterMovement::SetWallRun(bool useRequest) {
+	if (!GetOwner()->HasAuthority() && GetPawnOwner()->IsLocallyControlled()) {
+		ServerWallRun(useRequest);
+	} else {
+		ExecWallRun(useRequest);
+	}
+}
+
+void UShooterCharacterMovement::ExecWallRun(bool useRequest) {
+	bUseWallRun = useRequest;
+	bCanUseAbility = !useRequest;
+
+	if (!useRequest) {
+		WallRunElapsedTime = 0.0f;
+		HoldJumpButtonElapsedTime = 0.0f;
+		SetMovementMode(EMovementMode::MOVE_Falling);
+	}
+}
+
+bool UShooterCharacterMovement::ServerWallRun_Validate(bool useRequest) {
+	return true;
+}
+
+void UShooterCharacterMovement::ServerWallRun_Implementation(bool useRequest) {
+	ExecWallRun(useRequest);
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Network area
 FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionData_Client() const {
 	check(PawnOwner != NULL);
@@ -261,8 +321,10 @@ FSavedMovePtr FNetworkPredictionData_Client_Shooter::AllocateNewMove() {
 
 void FSavedMove_ShooterCharacter::Clear() {
 	Super::Clear();
+
 	savedUseTeleport = false;
 	savedUseJetpack = false;
+	savedUseWallRun = false;
 }
 
 void FSavedMove_ShooterCharacter::SetMoveFor(ACharacter * Character, float InDeltaTime, FVector const & NewAccel, FNetworkPredictionData_Client_Character & ClientData) {
@@ -271,6 +333,7 @@ void FSavedMove_ShooterCharacter::SetMoveFor(ACharacter * Character, float InDel
 	if (CharacterMovement) {
 		savedUseTeleport = CharacterMovement->bUseTeleport;
 		savedUseJetpack = CharacterMovement->bUseJetpack;
+		savedUseWallRun = CharacterMovement->bUseWallRun;
 	}
 }
 
@@ -279,8 +342,8 @@ void FSavedMove_ShooterCharacter::PrepMoveFor(ACharacter * Character) {
 
 	UShooterCharacterMovement* CharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
 	if (CharacterMovement) {
-		GEngine->AddOnScreenDebugMessage(-1, 0.2f, FColor::Yellow, TEXT("Preparation!!!!"));
 		CharacterMovement->ExecTeleport(savedUseTeleport);
 		CharacterMovement->ExecJetpack(savedUseJetpack);
+		CharacterMovement->ExecJetpack(savedUseWallRun);
 	}
 }

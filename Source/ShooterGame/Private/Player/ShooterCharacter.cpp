@@ -539,7 +539,6 @@ void AShooterCharacter::OnRep_LastTakeHitInfo()
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Take info");
 		PlayHit(LastTakeHitInfo.ActualDamage, LastTakeHitInfo.GetDamageEvent(), LastTakeHitInfo.PawnInstigator.Get(), LastTakeHitInfo.DamageCauser.Get());
 	}
 }
@@ -1162,8 +1161,11 @@ void AShooterCharacter::OnStartJump()
 	if (MyPC && MyPC->IsGameInputAllowed())
 	{
 		bPressedJump = true;
+	}
 
-
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent) {
+		MovementComponent->SetWallRun(true);
 	}
 }
 
@@ -1171,6 +1173,11 @@ void AShooterCharacter::OnStopJump()
 {
 	bPressedJump = false;
 	StopJumping();
+
+	UShooterCharacterMovement* MovementComponent = Cast<UShooterCharacterMovement>(GetCharacterMovement());
+	if (MovementComponent) {
+		MovementComponent->SetWallRun(false);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

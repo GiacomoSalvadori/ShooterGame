@@ -12,7 +12,8 @@ UENUM(BlueprintType)
 enum ECustomMovementMode
 {
 	CUSTOM_Teleport = 0,
-	CUSTOM_Jetpack = 1
+	CUSTOM_Jetpack = 1,
+	CUSTOM_WallRun = 2
 };
 
 UCLASS()
@@ -27,6 +28,9 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 
 	/** This function set the variables for calling the jetpack */
 	void ExecJetpack(bool useRequest);
+
+	/** This function set the variables for calling the jetpack */
+	void ExecWallRun(bool useRequest);
 
 private:
 
@@ -50,6 +54,12 @@ private:
 	/** Time handler used for fuel recover */
 	FTimerHandle FuelRecoverTimerHandle;
 
+	/** Elapsed time for wall run */
+	float WallRunElapsedTime;
+
+	/** Elapsed time for jump button pressed */
+	float HoldJumpButtonElapsedTime;
+
 	/** Time handler used for abilities */
 	FTimerHandle AbilityTimerHandle;
 
@@ -64,12 +74,15 @@ private:
 
 	/** Manage the jetpack mechanic's physics */
 	void PhysJetpack(float deltaTime, int32 Iterations);
+
+	/** Manage the wall run mechanic's physics */
+	void PhysWallRun(float deltaTime, int32 Iterations);
 	
 	/** Recharge the jetpack fuel */
 	void RecoverJetpackFuel();
 
-	/** Check if character is touching ground */
-	bool IsTouchingGround(float CheckDistance);
+	/** Check if character is touching in the specified direction */
+	FHitResult IsTouchingAround();
 
 	/** Function used for enabling the use of ability */
 	void EnableAbility();
@@ -122,9 +135,31 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
 	UCurveFloat* JetpackCurve;
 
+	/** Want to use walk run? */
+	bool bUseWallRun = false;
+
+	/** Set time length for walk run, 3.0 seconds is the default (like Lucio's ability) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
+	float WallRunTimeLength = 3.0f;
+
+	/** Set time length for holding button and then start the wall run */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
+	float HoldJumpButtonTime = 0.25f;
+
+	/** Set time length for holding button and then start the wall run */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
+	float WallRunSpeed = 5.0f;
+
+	/** Set time length for holding button and then start the wall run */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
+	float DistanceFromWall = 5.0f;
+
+	// FUNCTIONS
 	void SetTeleport(bool useRequest);
 
 	void SetJetpack(bool useRequest);
+
+	void SetWallRun(bool useRequest);
 
 	/**	This function is called from client to server */
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
@@ -134,8 +169,13 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
 	void ServerJetpack(bool useRequest);
 
+	/**	This function is called from client to server */
+	UFUNCTION(Server, Reliable, WithValidation, BlueprintCallable)
+	void ServerWallRun(bool useRequest);
+
 	UFUNCTION(BlueprintCallable, Category = "Jetpack")
 	float RetrieveActualFuel();
+
 
 	// GETTER
 
@@ -164,6 +204,7 @@ public:
 
 	bool savedUseTeleport = false;
 	bool savedUseJetpack = false;
+	bool savedUseWallRun = false;
 };
 
 /** Network data representation on the client. */
