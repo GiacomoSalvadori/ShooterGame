@@ -1207,6 +1207,7 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
+	DOREPLIFETIME(AShooterCharacter, EfxToPlay);
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -1338,4 +1339,48 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X - XDiff, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(BoundingBox.Max);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Play cosmetics
+
+void AShooterCharacter::OnRep_EfxToPlay() {
+	switch (EfxToPlay) {
+		case Efx_Teleport:
+			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx teleport"));
+			break;
+
+		case Efx_Jetpack:
+			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx jetpack"));
+			break;
+
+		case Efx_WallRun:
+			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx wall run"));
+			break;
+
+		default:
+		case Efx_Null:
+			break;
+	}
+
+}
+
+void AShooterCharacter::PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
+	if (GetLocalRole() == ROLE_Authority) {
+		SetNewEfx(NewEfx);
+	} else {
+		ServerPlayEfx(NewEfx);
+	}
+}
+
+bool AShooterCharacter::ServerPlayEfx_Validate(ECosmeticEfx NewEfx) {
+	return true;
+}
+
+void AShooterCharacter::ServerPlayEfx_Implementation(ECosmeticEfx NewEfx) {
+	SetNewEfx(NewEfx);
+}
+
+void AShooterCharacter::SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
+	EfxToPlay = NewEfx;
 }

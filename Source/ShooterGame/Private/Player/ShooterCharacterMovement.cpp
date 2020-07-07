@@ -267,6 +267,7 @@ void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 	if (bRunningOnWall) { // was touching a wall?
 		bRunningOnWall = false;
 		AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
+		ShooterCharacterOwner->PlayEfx(Efx_WallRun);
 		FVector Launch = Velocity;
 		Launch.Z = LaunchUpperVelocity; // Set the upper velocity
 		ShooterCharacterOwner->LaunchCharacter(Launch, true, true);

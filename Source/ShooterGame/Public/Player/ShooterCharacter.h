@@ -8,6 +8,15 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterEquipWeapon, AShooterCharacter*, AShooterWeapon* /* new */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterUnEquipWeapon, AShooterCharacter*, AShooterWeapon* /* old */);
 
+UENUM(BlueprintType)
+enum ECosmeticEfx
+{
+	Efx_Null = 0,
+	Efx_Teleport = 1,
+	Efx_Jetpack = 2,
+	Efx_WallRun = 3
+};
+
 UCLASS(Abstract)
 class AShooterCharacter : public ACharacter
 {
@@ -274,6 +283,7 @@ class AShooterCharacter : public ACharacter
 
 	/** Update the team color of all player meshes. */
 	void UpdateTeamColorsAllMIDs();
+
 private:
 
 	/** pawn mesh: 1st person view */
@@ -491,6 +501,27 @@ protected:
 protected:
 	/** Returns Mesh1P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+
+	//////////////////////////////////////////////////////////////////////////
+		// Play cosmetics
+
+private:
+	/** Cosmetic efx to replicate. This variable is replicated */
+	UPROPERTY(ReplicatedUsing = OnRep_EfxToPlay)
+	TEnumAsByte<ECosmeticEfx> EfxToPlay = Efx_Null;
+
+	UFUNCTION()
+	void OnRep_EfxToPlay();
+
+	void SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
+
+public:
+
+	void PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerPlayEfx(ECosmeticEfx NewEfx);
+
 };
 
 
