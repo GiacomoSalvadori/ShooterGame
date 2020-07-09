@@ -1208,7 +1208,6 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
-	DOREPLIFETIME(AShooterCharacter, EfxToPlay);
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -1345,12 +1344,22 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 //////////////////////////////////////////////////////////////////////////
 // Play cosmetics
 
-void AShooterCharacter::OnRep_EfxToPlay() {
+void AShooterCharacter::PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
+	
+	// from here
+	MulticastPlayEfx(NewEfx);
+	
+}
 
+bool AShooterCharacter::MulticastPlayEfx_Validate(ECosmeticEfx NewEfx) {
+	return true;
+}
+
+void AShooterCharacter::MulticastPlayEfx_Implementation(ECosmeticEfx NewEfx) {
 	UShooterCharacterMovement* Scm = Cast<UShooterCharacterMovement>(GetCharacterMovement());
 	FVector ParticleLocation = GetActorLocation();
 
-	switch (EfxToPlay) {
+	switch (NewEfx) {
 		case Efx_Teleport:
 			ParticleLocation -= GetActorForwardVector() * Scm->TeleportDistance;
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), TeleportParticle, ParticleLocation);
@@ -1358,47 +1367,25 @@ void AShooterCharacter::OnRep_EfxToPlay() {
 			break;
 
 		case Efx_Jetpack:
-			//ParticleLocation.Z = GetActorForwardVector().Z * -100.0f;
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), JetpackParticle, ParticleLocation);
 			UGameplayStatics::PlaySoundAtLocation(GetWorld(), JetpackSound, GetActorLocation());
 			break;
 
 		case Efx_WallRun:
 			if (!IsFirstPerson()) { // Play only for other players
-				StopAllAnimMontages();
+				//StopAllAnimMontages();
+				GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Play anim"));
 				if (Scm->GetHitSide() > 0) {
 					PlayAnimMontage(WallRunAnim);
 				} else {
 					PlayAnimMontage(WallRunAnimMirror);
 				}
 			}
-			
+
 			break;
 
 		default:
 		case Efx_Null:
-			break;
+		break;
 	}
-
-	EfxToPlay = Efx_Null;
-}
-
-void AShooterCharacter::PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
-	if (GetLocalRole() == ROLE_Authority) {
-		SetNewEfx(NewEfx);
-	} else {
-		ServerPlayEfx(NewEfx);
-	}
-}
-
-bool AShooterCharacter::ServerPlayEfx_Validate(ECosmeticEfx NewEfx) {
-	return true;
-}
-
-void AShooterCharacter::ServerPlayEfx_Implementation(ECosmeticEfx NewEfx) {
-	PlayEfx(NewEfx);
-}
-
-void AShooterCharacter::SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
-	EfxToPlay = NewEfx;
 }

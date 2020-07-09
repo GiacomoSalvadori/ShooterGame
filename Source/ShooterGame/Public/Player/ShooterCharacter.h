@@ -504,13 +504,7 @@ protected:
 	// Play cosmetics
 
 public:
-	/** Cosmetic efx to replicate. This variable is replicated */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_EfxToPlay)
-	TEnumAsByte<ECosmeticEfx> EfxToPlay = Efx_Null;
-
-	UFUNCTION()
-	void OnRep_EfxToPlay();
-
+		
 	UPROPERTY(EditAnywhere, Category = "Cosmetics|Teleport")
 	UParticleSystem* TeleportParticle;
 
@@ -528,14 +522,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Cosmetics|Wall Run")
 	UAnimMontage* WallRunAnimMirror;
-
-	void SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
-
+	
 	void PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
 
-	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerPlayEfx(ECosmeticEfx NewEfx);
-	
+	UFUNCTION(NetMulticast, Reliable, WithValidation)
+	void MulticastPlayEfx(ECosmeticEfx NewEfx);
+	//from here
 };
 
 

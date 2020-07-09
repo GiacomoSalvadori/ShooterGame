@@ -63,6 +63,9 @@ private:
 	/** Elapsed time for jump button pressed */
 	float HoldJumpButtonElapsedTime;
 
+	/** Is flying for the first time? */
+	bool bFlyingFirstTime = true;
+
 	/** Time handler used for abilities */
 	FTimerHandle AbilityTimerHandle;
 

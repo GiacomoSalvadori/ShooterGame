@@ -204,10 +204,15 @@ void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
 	if (ActualFuel <= 0.0f) {
 		bFuelOver = true;
 		bUseJetpack = false;
+		bFlyingFirstTime = true;
 		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 
-	ShooterCharacterOwner->PlayEfx(Efx_Jetpack);
+	if (bFlyingFirstTime) {
+		ShooterCharacterOwner->PlayEfx(Efx_Jetpack);
+		bFlyingFirstTime = false;
+	}
+	
 	JetpackElapsedTime += deltaTime * JetDir;
 	float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
 	Velocity.Z = CurveValue * MaxJetpackSpeed * deltaTime;
@@ -236,6 +241,7 @@ void UShooterCharacterMovement::ExecJetpack(bool useRequest) {
 
 	if (!useRequest) {
 		bUseJetpack = useRequest;
+		bFlyingFirstTime = true;
 		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 }
@@ -282,8 +288,11 @@ void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 		if (WallRunElapsedTime < WallRunTimeLength) {
 			FVector Adjusted = Velocity.GetSafeNormal() * deltaTime * WallRunSpeed;
 			Adjusted.Z = 0.0f; // Set Z = 0 so the player will run only left or right on the wall
+			if (!bRunningOnWall) {
+				ShooterCharacterOwner->PlayEfx(Efx_WallRun);
+			}
 			bRunningOnWall = true;
-			ShooterCharacterOwner->PlayEfx(Efx_WallRun);
+			
 			SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
 			return;
 		}
