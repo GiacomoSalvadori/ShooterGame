@@ -216,6 +216,22 @@ protected:
 	UPROPERTY()
 	FCanvasIcon HealthIcon;
 
+	/** Texture for HUD elements. */
+	UPROPERTY()
+	UTexture2D* JetpackTexture;
+
+	/** Health bar background icon. */
+	UPROPERTY()
+	FCanvasIcon JetpackBarBg;
+
+	/** Health bar icon. */
+	UPROPERTY()
+	FCanvasIcon JetpackBar;
+
+	/** Health icon on the health bar. */
+	UPROPERTY()
+	FCanvasIcon JetpackIcon;
+
 	/** Kills icon. */
 	UPROPERTY()
 	FCanvasIcon KillsIcon;
@@ -325,6 +341,9 @@ protected:
 
 	/** Draw player's health bar. */
 	void DrawHealth();
+
+	/** Draw player's jetpack fuel bar. */
+	void DrawJetpackFuel();
 
 	/** Draws match timer and player position. */
 	void DrawMatchTimerAndPosition();
