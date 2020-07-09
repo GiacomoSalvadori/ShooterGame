@@ -817,6 +817,7 @@ void AShooterCharacter::UpdateRunSounds()
 float AShooterCharacter::PlayAnimMontage(class UAnimMontage* AnimMontage, float InPlayRate, FName StartSectionName)
 {
 	USkeletalMeshComponent* UseMesh = GetPawnMesh();
+
 	if (AnimMontage && UseMesh && UseMesh->AnimScriptInstance)
 	{
 		return UseMesh->AnimScriptInstance->Montage_Play(AnimMontage, InPlayRate);
@@ -1345,33 +1346,29 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 // Play cosmetics
 
 void AShooterCharacter::OnRep_EfxToPlay() {
-	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx changed"));
+
 	UShooterCharacterMovement* Scm = Cast<UShooterCharacterMovement>(GetCharacterMovement());
 	FVector ParticleLocation = GetActorLocation();
 
 	switch (EfxToPlay) {
 		case Efx_Teleport:
-			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx teleport!!!!!!"));
 			ParticleLocation -= GetActorForwardVector() * Scm->TeleportDistance;
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), TeleportParticle, ParticleLocation);
 			UGameplayStatics::PlaySoundAtLocation(GetWorld(), TeleportSound, GetActorLocation());
 			break;
 
 		case Efx_Jetpack:
-			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx jetpack"));
 			//ParticleLocation.Z = GetActorForwardVector().Z * -100.0f;
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), JetpackParticle, ParticleLocation);
 			UGameplayStatics::PlaySoundAtLocation(GetWorld(), JetpackSound, GetActorLocation());
 			break;
 
 		case Efx_WallRun:
-			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx wall run"));
 			if (!IsFirstPerson()) { // Play only for other players
+				StopAllAnimMontages();
 				if (Scm->GetHitSide() > 0) {
-					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Side left : %f"), Scm->GetHitSide()));
 					PlayAnimMontage(WallRunAnim);
 				} else {
-					GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Side right : %f"), Scm->GetHitSide()));
 					PlayAnimMontage(WallRunAnimMirror);
 				}
 			}
@@ -1380,7 +1377,6 @@ void AShooterCharacter::OnRep_EfxToPlay() {
 
 		default:
 		case Efx_Null:
-			GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Efx empty"));
 			break;
 	}
 

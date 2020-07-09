@@ -92,9 +92,9 @@ void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMove
 	bool PrevModeWasJetpack = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_Jetpack;
 	bool PrevModeWasWallRun = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_WallRun;
 	
+	// Reset efx if we were in wall run or jetpack mode
 	if (PrevModeWasJetpack || PrevModeWasWallRun) {
 		ShooterCharacterOwner->PlayEfx(Efx_Null);
-		//GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Reset mode"));
 	}
 	
 }
@@ -157,9 +157,7 @@ void UShooterCharacterMovement::PhysTeleport(float deltaTime, int32 Iterations) 
 	FVector TargetLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * TeleportDistance;
 	/** Use this because controls if the destination point is inside a volume*/
 	GetOwner()->TeleportTo(TargetLocation, GetOwner()->GetActorRotation());
-	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Use teleport!!"));
 	ShooterCharacterOwner->PlayEfx(Efx_Teleport);
-	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Use efx tel!!"));
 	bUseTeleport = false;
 
 	/** This is important, without the character will continue to move forward */
@@ -302,7 +300,6 @@ void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 		FVector Launch = ShooterCharacterOwner->GetLastMovementInputVector() * LaunchUpperVelocity;
 		Launch.Z = LaunchUpperVelocity; // Set the upper velocity
 		ShooterCharacterOwner->LaunchCharacter(Launch, false, true);
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Launch : %s"), *Launch.ToString()));
 	} else {
 		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
