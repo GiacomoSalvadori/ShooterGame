@@ -50,16 +50,10 @@ private:
 
 	/** Used to control the jetpack curve */
 	float JetpackElapsedTime;
-
-	/** Used to handle the time of fuel consuming */
-	float JetpackElapsedTimeFuelConsume;
-	
+		
 	/** Actual fuel */
 	float ActualFuel;
-
-	/** Time handler used for fuel recover */
-	FTimerHandle FuelRecoverTimerHandle;
-
+	
 	/** Is the character running on a wall? */
 	bool bRunningOnWall = false;
 
@@ -90,7 +84,7 @@ private:
 	void PhysWallRun(float deltaTime, int32 Iterations);
 	
 	/** Recharge the jetpack fuel */
-	void RecoverJetpackFuel();
+	void RecoverJetpackFuel(float DeltaTime);
 
 	/** Check if character is touching in the specified direction */
 	FHitResult IsTouchingAround();

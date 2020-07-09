@@ -17,15 +17,21 @@ void UShooterCharacterMovement::BeginPlay() {
 	Super::BeginPlay();
 
 	JetpackElapsedTime = 0.0f;
-	JetpackElapsedTimeFuelConsume = 0.0f;
 	ActualFuel = JetpackFuel;
 	WallRunElapsedTime = 0.0f;
 	HoldJumpButtonElapsedTime = 0.0f;
+	if (JetpackTimeConsume <= 0.0f) { // avoid division by 0
+		JetpackTimeConsume = 1.0f;
+	}
 }
 
 void UShooterCharacterMovement::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// Jetpack
+	RecoverJetpackFuel(DeltaTime);
+
+	// Wall run
 	if (bUseWallRun) {
 		HoldJumpButtonElapsedTime += DeltaTime;
 	}
@@ -195,15 +201,12 @@ void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
 	
 	float JetDir = GetGravityZ() * -1; // Get gravity direction * -1  FMath::Sign(GetGravityZ())
 		
-	JetpackElapsedTimeFuelConsume += deltaTime;
-	if (JetpackElapsedTimeFuelConsume >= JetpackTimeConsume) {
-		JetpackElapsedTimeFuelConsume = 0.0f;
-		ActualFuel -= JetpackFuelConsume;
-		if (ActualFuel <= 0.0f) {
-			bFuelOver = true;
-			bUseJetpack = false;
-			SetMovementMode(EMovementMode::MOVE_Falling);
-		}
+	float FuelConsumed = JetpackFuelConsume * (deltaTime / JetpackTimeConsume);
+	ActualFuel = FMath::Clamp(ActualFuel - FuelConsumed, 0.0f, JetpackFuel);
+	if (ActualFuel <= 0.0f) {
+		bFuelOver = true;
+		bUseJetpack = false;
+		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 
 	ShooterCharacterOwner->PlayEfx(Efx_Jetpack);
@@ -230,14 +233,11 @@ void UShooterCharacterMovement::ExecJetpack(bool useRequest) {
 		bUseJetpack = useRequest;
 		if (useRequest) {
 			bCanUseAbility = useRequest;
-			// Clear the timer for fuel recovery
-			GetOwner()->GetWorldTimerManager().ClearTimer(FuelRecoverTimerHandle);
 		}
 	}
 
 	if (!useRequest) {
 		bUseJetpack = useRequest;
-		GetOwner()->GetWorldTimerManager().SetTimer(FuelRecoverTimerHandle, this, &UShooterCharacterMovement::RecoverJetpackFuel, JetpackTimeRecover, true);
 		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
 }
@@ -254,14 +254,15 @@ void UShooterCharacterMovement::ServerJetpack_Implementation(bool useRequest) {
 	}
 }
 
-void UShooterCharacterMovement::RecoverJetpackFuel() {
-	float NewFuelAmount = ActualFuel + JetpackFuelRecover;
-	ActualFuel = FMath::Clamp(NewFuelAmount, 0.0f, JetpackFuel);
+void UShooterCharacterMovement::RecoverJetpackFuel(float DeltaTime) {
+	if (!bUseJetpack) {
+		float FuelRecovered = JetpackFuelRecover * (DeltaTime * JetpackTimeRecover);
+		ActualFuel = FMath::Clamp(ActualFuel + FuelRecovered, 0.0f, JetpackFuel);
 
-	if (ActualFuel == JetpackFuel) {
-		GetOwner()->GetWorldTimerManager().ClearTimer(FuelRecoverTimerHandle);
-		if (bFuelOver) {
-			bFuelOver = false;
+		if (ActualFuel == JetpackFuel) {
+			if (bFuelOver) {
+				bFuelOver = false;
+			}
 		}
 	}
 }
