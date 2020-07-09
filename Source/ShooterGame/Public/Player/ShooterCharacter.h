@@ -353,8 +353,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Animation)
 	UAnimMontage* DeathAnim;
 
-	UPROPERTY(EditDefaultsOnly, Category = Animation)
-	UAnimMontage* AnotherAnim;
 
 	/** sound played on death, local player only */
 	UPROPERTY(EditDefaultsOnly, Category = Pawn)
@@ -503,25 +501,41 @@ protected:
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 
 	//////////////////////////////////////////////////////////////////////////
-		// Play cosmetics
+	// Play cosmetics
 
-private:
+public:
 	/** Cosmetic efx to replicate. This variable is replicated */
-	UPROPERTY(ReplicatedUsing = OnRep_EfxToPlay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_EfxToPlay)
 	TEnumAsByte<ECosmeticEfx> EfxToPlay = Efx_Null;
 
 	UFUNCTION()
 	void OnRep_EfxToPlay();
 
-	void SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Teleport")
+	UParticleSystem* TeleportParticle;
 
-public:
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Teleport")
+	USoundBase* TeleportSound;
+
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Jetpack")
+	UParticleSystem* JetpackParticle;
+
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Jetpack")
+	USoundBase* JetpackSound;
+
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Wall Run")
+	UAnimMontage* WallRunAnim;
+
+	UPROPERTY(EditAnywhere, Category = "Cosmetics|Wall Run")
+	UAnimMontage* WallRunAnimMirror;
+
+	void SetNewEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
 
 	void PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerPlayEfx(ECosmeticEfx NewEfx);
-
+	
 };
 
 

@@ -34,6 +34,12 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 
 private:
 
+	/** The shooter character associated */
+	AShooterCharacter* ShooterCharacterOwner;
+
+	/** This number indicate the side where the hit occurs */
+	float PointSide;
+
 	/** Variable used for ability cool down. Player could use one ability per time */
 	bool bCanUseAbility = true;
 
@@ -70,6 +76,8 @@ private:
 	
 	virtual void OnMovementUpdated(float DeltaSeconds, const FVector & OldLocation, const FVector & OldVelocity) override;
 
+	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
+
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
 
 	/** Manage the teleport mechanic's physics */
@@ -89,6 +97,9 @@ private:
 
 	/** Function used for enabling the use of ability */
 	void EnableAbility();
+
+	/** Store the result of the hit side in HitSide */
+	void CheckHitSide(FVector LinePoint1, FVector LinePoint2, FVector Point);
 
 protected:
 	virtual void BeginPlay() override;
@@ -190,6 +201,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool CanUseAbility();
 
+	/** Retrieve the hit side of the last hit */
+	float GetHitSide();
+	
 };
 
 /** represents a saved move on the client that has been sent to the server and might need 

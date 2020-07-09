@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ShooterGame.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Player/ShooterCharacterMovement.h"
 
 //----------------------------------------------------------------------//
@@ -9,6 +10,7 @@
 UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
 }
 
 void UShooterCharacterMovement::BeginPlay() {
@@ -36,11 +38,15 @@ bool UShooterCharacterMovement::CanUseAbility() {
 	return bCanUseAbility;
 }
 
+float UShooterCharacterMovement::GetHitSide() {
+
+	return PointSide;
+}
+
 float UShooterCharacterMovement::GetMaxSpeed() const
 {
 	float MaxSpeed = Super::GetMaxSpeed();
 
-	const AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(PawnOwner);
 	if (ShooterCharacterOwner)
 	{
 		if (ShooterCharacterOwner->IsTargeting())
@@ -73,6 +79,20 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
+void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) {
+	
+	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+	bool PrevModeWasJetpack = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_Jetpack;
+	bool PrevModeWasWallRun = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_WallRun;
+	
+	if (PrevModeWasJetpack || PrevModeWasWallRun) {
+		ShooterCharacterOwner->PlayEfx(Efx_Null);
+		//GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Reset mode"));
+	}
+	
+}
+
 void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 	switch (CustomMovementMode) {
 		case CUSTOM_Teleport:
@@ -103,16 +123,25 @@ FHitResult UShooterCharacterMovement::IsTouchingAround() {
 	FCollisionShape CollShape = FCollisionShape::MakeSphere(DistanceFromWall);
 
 	FHitResult Hit;
-	DrawDebugSphere(GetWorld(), Center, DistanceFromWall, 12, FColor::Orange, false, 4.0f);
+	//DrawDebugSphere(GetWorld(), Center, DistanceFromWall, 12, FColor::Orange, false, 4.0f);
 	bool bHit = GetWorld()->SweepSingleByChannel(Hit, Center, Center, FQuat::Identity, ECC_Pawn, CollShape, Params);
 	
+	if (bHit) {
+		FVector LinePoint2 = Hit.ImpactPoint + Hit.ImpactNormal * 2000.0f;
+		CheckHitSide(Hit.ImpactPoint, LinePoint2, Center);
+	}
+
 	return Hit;
 }
 
 void UShooterCharacterMovement::EnableAbility() {
 	bCanUseAbility = true;
+	ShooterCharacterOwner->PlayEfx(Efx_Null);
 }
 
+void UShooterCharacterMovement::CheckHitSide(FVector LinePoint1, FVector LinePoint2, FVector Point) {
+	PointSide = (Point.X - LinePoint1.X)*(LinePoint2.Y - LinePoint1.Y) - (Point.Y - LinePoint1.Y)*(LinePoint2.X - LinePoint1.X);
+}
 
 //////////////////////////////////////////////////////////////////////////
 ///// TELEPORT
@@ -122,8 +151,11 @@ void UShooterCharacterMovement::PhysTeleport(float deltaTime, int32 Iterations) 
 	FVector TargetLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * TeleportDistance;
 	/** Use this because controls if the destination point is inside a volume*/
 	GetOwner()->TeleportTo(TargetLocation, GetOwner()->GetActorRotation());
-	
+	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Use teleport!!"));
+	ShooterCharacterOwner->PlayEfx(Efx_Teleport);
+	GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Use efx tel!!"));
 	bUseTeleport = false;
+
 	/** This is important, without the character will continue to move forward */
 	SetMovementMode(EMovementMode::MOVE_Walking);
 	GetOwner()->GetWorldTimerManager().SetTimer(AbilityTimerHandle, this, &UShooterCharacterMovement::EnableAbility, TeleportCoolDown, false);
@@ -174,9 +206,9 @@ void UShooterCharacterMovement::PhysJetpack(float deltaTime, int32 Iterations) {
 		}
 	}
 
+	ShooterCharacterOwner->PlayEfx(Efx_Jetpack);
 	JetpackElapsedTime += deltaTime * JetDir;
 	float CurveValue = JetpackCurve->GetFloatValue(JetpackElapsedTime); // Evaluate curve
-
 	Velocity.Z = CurveValue * MaxJetpackSpeed * deltaTime;
 
 	PhysFalling(deltaTime, Iterations); // Use the falling physics	
@@ -244,15 +276,15 @@ float UShooterCharacterMovement::RetrieveActualFuel() {
 void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 	
 	FHitResult Hit = IsTouchingAround();
-
+	
 	if (Hit.bBlockingHit) {
 		WallRunElapsedTime += deltaTime;
-
+		
 		if (WallRunElapsedTime < WallRunTimeLength) {
-			bRunningOnWall = true;
 			FVector Adjusted = Velocity.GetSafeNormal() * deltaTime * WallRunSpeed;
 			Adjusted.Z = 0.0f; // Set Z = 0 so the player will run only left or right on the wall
-
+			bRunningOnWall = true;
+			ShooterCharacterOwner->PlayEfx(Efx_WallRun);
 			SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
 			return;
 		}
@@ -263,15 +295,13 @@ void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 	WallRunElapsedTime = 0.0f;
 	HoldJumpButtonElapsedTime = 0.0f;
 	EnableAbility();
-
+	
 	if (bRunningOnWall) { // was touching a wall?
 		bRunningOnWall = false;
-		AShooterCharacter* ShooterCharacterOwner = Cast<AShooterCharacter>(GetOwner());
-		ShooterCharacterOwner->PlayEfx(Efx_WallRun);
-		FVector Launch = Velocity;
+		FVector Launch = ShooterCharacterOwner->GetLastMovementInputVector() * LaunchUpperVelocity;
 		Launch.Z = LaunchUpperVelocity; // Set the upper velocity
-		ShooterCharacterOwner->LaunchCharacter(Launch, true, true);
-		GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Apply launch"));
+		ShooterCharacterOwner->LaunchCharacter(Launch, false, true);
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("Launch : %s"), *Launch.ToString()));
 	} else {
 		SetMovementMode(EMovementMode::MOVE_Falling);
 	}
