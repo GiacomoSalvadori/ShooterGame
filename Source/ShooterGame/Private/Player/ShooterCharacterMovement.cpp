@@ -85,20 +85,6 @@ void UShooterCharacterMovement::OnMovementUpdated(float DeltaSeconds, const FVec
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
 }
 
-void UShooterCharacterMovement::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) {
-	
-	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
-
-	bool PrevModeWasJetpack = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_Jetpack;
-	bool PrevModeWasWallRun = PreviousMovementMode == EMovementMode::MOVE_Custom && PreviousCustomMode == ECustomMovementMode::CUSTOM_WallRun;
-	
-	// Reset efx if we were in wall run or jetpack mode
-	if (PrevModeWasJetpack || PrevModeWasWallRun) {
-		ShooterCharacterOwner->PlayEfx(Efx_Null);
-	}
-	
-}
-
 void UShooterCharacterMovement::PhysCustom(float deltaTime, int32 Iterations) {
 	switch (CustomMovementMode) {
 		case CUSTOM_Teleport:
@@ -142,7 +128,6 @@ FHitResult UShooterCharacterMovement::IsTouchingAround() {
 
 void UShooterCharacterMovement::EnableAbility() {
 	bCanUseAbility = true;
-	ShooterCharacterOwner->PlayEfx(Efx_Null);
 }
 
 void UShooterCharacterMovement::CheckHitSide(FVector LinePoint1, FVector LinePoint2, FVector Point) {
@@ -155,9 +140,11 @@ void UShooterCharacterMovement::CheckHitSide(FVector LinePoint1, FVector LinePoi
 void UShooterCharacterMovement::PhysTeleport(float deltaTime, int32 Iterations) {
 
 	FVector TargetLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * TeleportDistance;
-	/** Use this because controls if the destination point is inside a volume*/
-	GetOwner()->TeleportTo(TargetLocation, GetOwner()->GetActorRotation());
-	ShooterCharacterOwner->PlayEfx(Efx_Teleport);
+	/** Use this because controls if the destination point is inside a volume */
+	if (GetOwner()->TeleportTo(TargetLocation, GetOwner()->GetActorRotation())) {
+		ShooterCharacterOwner->PlayEfx(Efx_Teleport);
+	}
+	
 	bUseTeleport = false;
 
 	/** This is important, without the character will continue to move forward */
@@ -176,7 +163,7 @@ void UShooterCharacterMovement::SetTeleport(bool useRequest) {
 
 void UShooterCharacterMovement::ExecTeleport(bool useRequest) {
 	/** Just set the use variable to true, the OnMovementUpdated() function will change 
-	the movement mode. The teleport is iplemented in the PhysTeleport(), called by PhysCustom() */
+	the movement mode. The teleport is implemented in the PhysTeleport(), called by PhysCustom() */
 	bUseTeleport = useRequest;
 	bCanUseAbility = !useRequest;
 }
@@ -306,7 +293,7 @@ void UShooterCharacterMovement::PhysWallRun(float deltaTime, int32 Iterations) {
 	
 	if (bRunningOnWall) { // was touching a wall?
 		bRunningOnWall = false;
-		FVector Launch = ShooterCharacterOwner->GetLastMovementInputVector() * LaunchUpperVelocity;
+		FVector Launch = ShooterCharacterOwner->GetLastMovementInputVector();// Get input direction
 		Launch.Z = LaunchUpperVelocity; // Set the upper velocity
 		ShooterCharacterOwner->LaunchCharacter(Launch, false, true);
 	} else {

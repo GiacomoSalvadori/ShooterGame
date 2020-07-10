@@ -520,14 +520,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Cosmetics|Wall Run")
 	UAnimMontage* WallRunAnim;
 
+	/** Like the previous animation but mirrored */
 	UPROPERTY(EditAnywhere, Category = "Cosmetics|Wall Run")
 	UAnimMontage* WallRunAnimMirror;
 	
+	/** Function called to play efx */
 	void PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx);
 
+	/** Multicast function for playing efx */
 	UFUNCTION(NetMulticast, Reliable, WithValidation)
 	void MulticastPlayEfx(ECosmeticEfx NewEfx);
-	//from here
+
 };
 
 

@@ -1346,9 +1346,7 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 
 void AShooterCharacter::PlayEfx(TEnumAsByte<ECosmeticEfx> NewEfx) {
 	
-	// from here
-	MulticastPlayEfx(NewEfx);
-	
+	MulticastPlayEfx(NewEfx); // Call a multicast function, so replies efx in every instance
 }
 
 bool AShooterCharacter::MulticastPlayEfx_Validate(ECosmeticEfx NewEfx) {
@@ -1358,10 +1356,11 @@ bool AShooterCharacter::MulticastPlayEfx_Validate(ECosmeticEfx NewEfx) {
 void AShooterCharacter::MulticastPlayEfx_Implementation(ECosmeticEfx NewEfx) {
 	UShooterCharacterMovement* Scm = Cast<UShooterCharacterMovement>(GetCharacterMovement());
 	FVector ParticleLocation = GetActorLocation();
-
+	AActor* MySelf = Cast<AActor>(this);
 	switch (NewEfx) {
 		case Efx_Teleport:
 			ParticleLocation -= GetActorForwardVector() * Scm->TeleportDistance;
+			
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), TeleportParticle, ParticleLocation);
 			UGameplayStatics::PlaySoundAtLocation(GetWorld(), TeleportSound, GetActorLocation());
 			break;
@@ -1373,15 +1372,13 @@ void AShooterCharacter::MulticastPlayEfx_Implementation(ECosmeticEfx NewEfx) {
 
 		case Efx_WallRun:
 			if (!IsFirstPerson()) { // Play only for other players
-				//StopAllAnimMontages();
-				GEngine->AddOnScreenDebugMessage(-1, 4.0f, FColor::Green, TEXT("Play anim"));
+				StopAllAnimMontages();
 				if (Scm->GetHitSide() > 0) {
 					PlayAnimMontage(WallRunAnim);
 				} else {
 					PlayAnimMontage(WallRunAnimMirror);
 				}
 			}
-
 			break;
 
 		default:

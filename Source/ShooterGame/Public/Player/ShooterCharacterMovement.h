@@ -73,8 +73,6 @@ private:
 	
 	virtual void OnMovementUpdated(float DeltaSeconds, const FVector & OldLocation, const FVector & OldVelocity) override;
 
-	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
-
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
 
 	/** Manage the teleport mechanic's physics */
@@ -161,7 +159,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
 	float WallRunSpeed = 5.0f;
 
-	/** Set time length for holding button and then start the wall run */
+	/** Set distance from wall for enabling wall run */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Wall Run")
 	float DistanceFromWall = 5.0f;
 
