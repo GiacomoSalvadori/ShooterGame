@@ -1356,7 +1356,7 @@ bool AShooterCharacter::MulticastPlayEfx_Validate(ECosmeticEfx NewEfx) {
 void AShooterCharacter::MulticastPlayEfx_Implementation(ECosmeticEfx NewEfx) {
 	UShooterCharacterMovement* Scm = Cast<UShooterCharacterMovement>(GetCharacterMovement());
 	FVector ParticleLocation = GetActorLocation();
-	AActor* MySelf = Cast<AActor>(this);
+
 	switch (NewEfx) {
 		case Efx_Teleport:
 			ParticleLocation -= GetActorForwardVector() * Scm->TeleportDistance;
